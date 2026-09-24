@@ -1057,7 +1057,11 @@ function placeholderTexture(label = 'NEXIE', top = '#b79cf2', bottom = '#4a3d6b'
 }
 
 const nexieViews = [placeholderTexture(), placeholderTexture('NEXIE 2', '#9fd0f2', '#3d4f6b')];
+const nexieLoaded = [false, false];
 let nexieView = 0;
+// which way she is standing: her desk faces into the room along -X here, so the
+// view-switch angles are measured from that, not from world +Z
+const NEXIE_FACING = -Math.PI / 2;
 // hologram look: scanlines, faint colour split, flicker, and short glitch bursts
 const HOLO_OPACITY = 0.92;
 // the always-on hologram effects; 0 turns each one off
@@ -1144,6 +1148,7 @@ fetch('nexie.json').then(r => r.ok ? r.json() : null).then(cfg => {
       t.encoding = THREE.sRGBEncoding;
       t.anisotropy = renderer.capabilities.getMaxAnisotropy();
       nexieViews[i] = t;
+      nexieLoaded[i] = true;
       if (i === nexieView) { holoMat.uniforms.map.value = t; placeNexie(); }
     }, undefined, () => {});
   });
@@ -1452,10 +1457,14 @@ function frame(now = performance.now()) {
   const nAng = Math.atan2(camera.position.x - nexie.position.x, camera.position.z - nexie.position.z);
   nexie.rotation.y = nAng;
   // angle 0 = straight in front of her, negative = her right (your left), ±PI = behind her.
-  // View 2 covers her 1:30 (-45 deg) round to directly behind; small dead zones stop flicker.
-  const wantView = nexieView === 0
-    ? ((nAng < -0.785 && nAng > -Math.PI + 0.05) ? 1 : 0)
-    : ((nAng > -0.72 && nAng < Math.PI - 0.05) ? 0 : 1);
+  // angle relative to the way she faces: 0 straight in front, negative to her right
+  let rel = nAng - NEXIE_FACING;
+  rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+  // View 2 covers her 1:30 (-45 deg) round to directly behind; dead zones stop flicker.
+  let wantView = nexieView === 0
+    ? ((rel < -0.785 && rel > -Math.PI + 0.05) ? 1 : 0)
+    : ((rel > -0.72 && rel < Math.PI - 0.05) ? 0 : 1);
+  if (wantView === 1 && !nexieLoaded[1]) wantView = 0;     // no nexie2.png yet, stay on the first
   if (wantView !== nexieView) {
     nexieView = wantView;
     holoMat.uniforms.map.value = nexieViews[nexieView];
