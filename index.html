@@ -151,7 +151,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.75 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = isTouch ? 0.92 : 1.05;
 renderer.localClippingEnabled = true;   // lets the falling glyphs be cut off by the lips
 document.body.appendChild(renderer.domElement);
 
@@ -248,13 +248,18 @@ const gloss = (color, extra = {}) => {
               envMapIntensity: 1.4, ...extra };
   if (isTouch) {
     const { clearcoat, clearcoatRoughness, ...rest } = o;
-    return new THREE.MeshStandardMaterial({ ...rest, roughness: Math.max(0.2, o.roughness) });
+    return new THREE.MeshStandardMaterial({
+      ...rest,
+      roughness: Math.max(0.42, o.roughness),                 // spreads the highlight out
+      envMapIntensity: (o.envMapIntensity ?? 1) * 0.55        // and dims the reflection
+    });
   }
   return new THREE.MeshPhysicalMaterial(o);
 };
 
 const M = {
-  floor:     gloss(0x0a0a0b, { map: tileTexture(), roughness: 0.34, clearcoatRoughness: 0.16, envMapIntensity: 0.55 }),
+  floor:     gloss(0x0a0a0b, { map: tileTexture(), roughness: isTouch ? 0.62 : 0.34,
+               clearcoatRoughness: 0.16, envMapIntensity: 0.55 }),   // phones: rougher, so the sun doesn't burn a hole in it
   wall:      isTouch
                ? new THREE.MeshStandardMaterial({ color: 0x0c0c0d, roughness: 0.6, metalness: 0, envMapIntensity: 0 })
                : new THREE.MeshPhysicalMaterial({ color: 0x0c0c0d, roughness: 0.7, metalness: 0,
@@ -373,10 +378,10 @@ for (let x = -6; x <= 6; x += 4) box(0.08, 0.02, 11, M.led, x, H - 0.01, 0);
 
 // real lights along them: 8 on desktop, 2 on phones
 const lampSpots = isTouch
-  ? [[-3, 0], [3, 0]]
-  : [[-6, -3], [-6, 3], [-2, -3], [-2, 3], [2, -3], [2, 3], [6, -3], [6, 3]];
+  ? [[-3, 0], [3, 0]]                                  // two pools, away from the map wall
+  : [[-6, -3], [-6, 3], [-2, -3], [-2, 3], [2, -3], [2, 3]];   // the pair by the map is gone
 for (const [lx, lz] of lampSpots) {
-  const p = new THREE.PointLight(0xeef2ff, isTouch ? 0.75 : 0.34, isTouch ? 26 : 17, 2);
+  const p = new THREE.PointLight(0xeef2ff, isTouch ? 0.3 : 0.34, isTouch ? 26 : 17, 2);
   p.position.set(lx, H - 0.15, lz);
   scene.add(p);
 }
@@ -488,42 +493,12 @@ const rain = (() => {
 
 const artMat = new THREE.MeshStandardMaterial({
   color: 0xffffff, map: rain.tex, emissiveMap: rain.tex, emissive: 0xffffff,
-  emissiveIntensity: 0.75, roughness: 0.6, metalness: 0, envMapIntensity: 0,
-  transparent: true, opacity: 0.8
+  emissiveIntensity: 0.75, roughness: 0.6, metalness: 0, envMapIntensity: 0
 });
 const artPlane = new THREE.Mesh(new THREE.PlaneGeometry(ART.w, ART.h), artMat);
 artPlane.rotation.y = -Math.PI / 2;
 artPlane.position.set(hw - 0.012, ART.y, ART.z);
 scene.add(artPlane);
-
-// map.png goes on the panel. It's drawn onto a canvas the exact shape of the
-// frame and scaled to fit inside it, so any size or aspect works and the frame
-// itself never changes. The rain stays as the fallback if the file is missing.
-const MAP_IMAGE = 'map.png';
-const MAP_GLOW = 0.5;                  // how lit the panel looks in the dark room
-(function loadPanelImage() {
-  const img = new Image();
-  img.onload = () => {
-    const c = document.createElement('canvas');
-    c.width = 1536;
-    c.height = Math.round(1536 * (ART.h / ART.w));     // same shape as the frame
-    const g = c.getContext('2d');
-    g.fillStyle = '#000';
-    g.fillRect(0, 0, c.width, c.height);
-    const k = Math.max(c.width / img.width, c.height / img.height);   // fill the frame, crop the overflow
-    const w = img.width * k, h = img.height * k;
-    g.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
-    const t = new THREE.CanvasTexture(c);
-    t.encoding = THREE.sRGBEncoding;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    artMat.map = t;
-    artMat.emissiveMap = t;
-    artMat.emissiveIntensity = MAP_GLOW;
-    artMat.needsUpdate = true;
-  };
-  img.onerror = () => {};              // keep the rain
-  img.src = MAP_IMAGE;
-})();
 
 BATCH = true;
 // spill lip at the top, tiny, and the catch basin lip at the bottom
@@ -536,6 +511,8 @@ for (const zz of [-LIP_W / 2, LIP_W / 2]) {                                     
   box(0.62, 0.2, 0.05, M.black, hw - 0.33, ART.y - ART.h / 2 - 0.02, ART.z + zz);
   box(0.5, 0.07, 0.05, M.black, hw - 0.27, ART.y + ART.h / 2 + 0.055, ART.z + zz);
 }
+BATCH = false;
+flushBatch(scene);
 
 // 3D glyphs falling in front of the panel, lip to lip
 const glyphRain = (() => {
@@ -953,7 +930,7 @@ PARENT = scene;
 // A handful of glyph columns falling in the air all around the tower, high above
 // the rooftops and only falling a short way. One InstancedMesh, one draw call.
 const cityRain = (() => {
-  const COUNT = isTouch ? 224 : 512;
+  const COUNT = 512;
   const TOP = 220, BOTTOM = -260;             // falls down among the towers
   const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789@#$%&*+=<>?!'.split('');
 
@@ -1013,7 +990,7 @@ const cityRain = (() => {
 scene.add(new THREE.HemisphereLight(0xa192bd, 0x2a2436, 0.45));
 scene.add(new THREE.AmbientLight(0xffffff, 0.12));
 
-const sun = new THREE.DirectionalLight(0xd8cdf0, 0.6);
+const sun = new THREE.DirectionalLight(0xd8cdf0, isTouch ? 0.34 : 0.6);   // weaker on phones
 sun.position.set(-10, 20, -30);
 scene.add(sun);
 
@@ -1024,7 +1001,7 @@ const CFG = {
   name: 'Nexie',
   image: 'nexie.png',
   image2: 'nexie2.png',           // shown when you walk round to her right (your left)
-  position: [6.52, 0, 1.2],       // behind the desk
+  position: [6.52, 0, 0],         // behind the desk, centred on it
   height: 1.88,
   greeting: "Welcome to the Nexus District. First time here?",
   endpoint: '',                    // your Cloudflare Worker URL
