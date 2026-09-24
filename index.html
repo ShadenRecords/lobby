@@ -379,9 +379,9 @@ for (let x = -6; x <= 6; x += 4) box(0.08, 0.02, 11, M.led, x, H - 0.01, 0);
 // real lights along them: 8 on desktop, 2 on phones
 const lampSpots = isTouch
   ? [[-3, 0], [3, 0]]                                  // two pools, away from the map wall
-  : [[-6, -3], [-6, 3], [-2, -3], [-2, 3], [2, -3], [2, 3]];   // the pair by the map is gone
+  : [[-2, -3], [-2, 3], [2, -3], [2, 3]];              // pairs by the map and the sign are gone
 for (const [lx, lz] of lampSpots) {
-  const p = new THREE.PointLight(0xeef2ff, isTouch ? 0.3 : 0.34, isTouch ? 26 : 17, 2);
+  const p = new THREE.PointLight(0xeef2ff, isTouch ? 0.18 : 0.34, isTouch ? 26 : 17, 2);
   p.position.set(lx, H - 0.15, lz);
   scene.add(p);
 }
