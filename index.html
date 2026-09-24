@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Sky Lobby</title>
+<title>The Lobby</title>
 <style>
   :root { --bg: #0a0a0b; --hint-bg: rgba(20,22,26,.85); --hint-fg: #d6dbe1; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
@@ -100,7 +100,7 @@
 </style>
 </head>
 <body>
-<div id="loading"><span>Entering the sky lobby…</span></div>
+<div id="loading"><span>Entering the lobby…</span></div>
 <div id="hint"></div>
 <div id="fade"></div>
 <div id="stats" hidden></div>
@@ -489,7 +489,7 @@ const rain = (() => {
 const artMat = new THREE.MeshStandardMaterial({
   color: 0xffffff, map: rain.tex, emissiveMap: rain.tex, emissive: 0xffffff,
   emissiveIntensity: 0.75, roughness: 0.6, metalness: 0, envMapIntensity: 0,
-  transparent: true, opacity: 0.93
+  transparent: true, opacity: 0.8
 });
 const artPlane = new THREE.Mesh(new THREE.PlaneGeometry(ART.w, ART.h), artMat);
 artPlane.rotation.y = -Math.PI / 2;
@@ -510,7 +510,7 @@ const MAP_GLOW = 0.5;                  // how lit the panel looks in the dark ro
     const g = c.getContext('2d');
     g.fillStyle = '#000';
     g.fillRect(0, 0, c.width, c.height);
-    const k = Math.min(c.width / img.width, c.height / img.height);   // fit, never crop
+    const k = Math.max(c.width / img.width, c.height / img.height);   // fill the frame, crop the overflow
     const w = img.width * k, h = img.height * k;
     g.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
     const t = new THREE.CanvasTexture(c);
@@ -1024,7 +1024,7 @@ const CFG = {
   name: 'Nexie',
   image: 'nexie.png',
   image2: 'nexie2.png',           // shown when you walk round to her right (your left)
-  position: [6.52, 0, 1.2],       // same spot behind the desk, now on the rain wall
+  position: [6.52, 0, 1.2],       // behind the desk, same spot as before
   height: 1.88,
   greeting: "Welcome to the Nexus District. First time here?",
   endpoint: '',                    // your Cloudflare Worker URL
@@ -1099,7 +1099,7 @@ const holoMat = new THREE.ShaderMaterial({
       vec4 c = texture2D(map, uv);
       c.r = mix(c.r, texture2D(map, uv + vec2(sp, 0.0)).r, 0.7);
       c.b = mix(c.b, texture2D(map, uv - vec2(sp, 0.0)).b, 0.7);
-      if (c.a < 0.35) discard;
+      if (c.a < 0.06) discard;      // keep soft edges instead of cutting them off
       float scan = 1.0 - scanAmt * (0.5 + 0.5 * sin(uv.y * 820.0 - time * 5.0));   // scanlines
       float flick = 1.0 - flickAmt * (0.5 + 0.5 * sin(time * 41.0 + rnd(floor(time * 8.0)) * 6.0));
       vec3 col = c.rgb * scan * flick + vec3(0.02, 0.012, 0.035) * glitch;
