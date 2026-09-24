@@ -1024,7 +1024,7 @@ const CFG = {
   name: 'Nexie',
   image: 'nexie.png',
   image2: 'nexie2.png',           // shown when you walk round to her right (your left)
-  position: [6.52, 0, 1.2],       // behind the desk, same spot as before
+  position: [6.52, 0, 1.2],       // behind the desk
   height: 1.88,
   greeting: "Welcome to the Nexus District. First time here?",
   endpoint: '',                    // your Cloudflare Worker URL
@@ -1082,17 +1082,23 @@ const holoMat = new THREE.ShaderMaterial({
   },
   transparent: true,
   vertexShader: `
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
     varying vec2 vUv;
     void main() {
       vUv = uv;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      #include <logdepthbuf_vertex>
     }`,
   fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
     uniform sampler2D map;
     uniform float time, glitch, opacity, scanAmt, splitAmt, flickAmt;
     varying vec2 vUv;
     float rnd(float n) { return fract(sin(n) * 43758.5453); }
     void main() {
+      #include <logdepthbuf_fragment>
       vec2 uv = vUv;
       // during a burst, random horizontal bands slide sideways
       float band = floor(uv.y * 28.0);
@@ -1264,9 +1270,11 @@ document.getElementById('chat-form').addEventListener('submit', async e => {
 
 // solid interior surfaces cast and receive; glass, LEDs and the city stay out of it
 // ================= FIRST-PERSON CONTROLS =================
-let yaw = 0, pitch = 0;
+// start looking across the room toward the desk and the rain wall, so Nexie is
+// in shot straight away with the window view off to the left
+let yaw = -0.72, pitch = 0;
 let goalYaw = yaw, goalPitch = pitch;
-const goal = new THREE.Vector3(0, EYE_HEIGHT, 7.5);
+const goal = new THREE.Vector3(-1.2, EYE_HEIGHT, 7.2);
 camera.position.copy(goal);
 
 function look(dx, dy, sx, sy) {
