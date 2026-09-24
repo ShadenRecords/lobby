@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Lobby</title>
+<title>Sky Lobby</title>
 <style>
   :root { --bg: #0a0a0b; --hint-bg: rgba(20,22,26,.85); --hint-fg: #d6dbe1; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
@@ -97,48 +97,10 @@
     padding: 8px 14px; border-radius: 8px; pointer-events: none;
     max-width: calc(100% - 32px); text-align: center; transition: opacity .6s;
   }
-  #arrival {
-    position: fixed; inset: 0; z-index: 44; display: flex; align-items: center; justify-content: center;
-    padding: 24px; background: linear-gradient(180deg, rgba(5,5,8,.48), rgba(5,5,8,.78));
-    pointer-events: none; transition: opacity .35s ease;
-  }
-  #arrival.off { opacity: 0; pointer-events: none; }
-  #arrival-card {
-    width: min(520px, 100%); padding: 26px 28px 24px; background: rgba(10,10,15,.9);
-    border: 1px solid #5f4c8c; border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.7), 0 0 34px rgba(129,94,196,.2);
-    color: #e8e9ef; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-    pointer-events: auto; backdrop-filter: blur(12px);
-  }
-  #arrival-kicker { color: #b79cf2; font: 11px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .22em; text-transform: uppercase; }
-  #arrival h1 { margin: 10px 0 8px; font-size: clamp(25px, 5vw, 38px); letter-spacing: .1em; text-transform: uppercase; font-weight: 500; }
-  #arrival p { margin: 0; color: #b9bdc8; max-width: 46ch; }
-  #arrival-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin-top: 20px; }
-  #arrival-actions a, #arrival-dismiss {
-    border: 1px solid #403750; background: #17151e; color: #e9e2fb; border-radius: 8px;
-    padding: 10px 12px; text-align: left; text-decoration: none; font: inherit; cursor: pointer;
-  }
-  #arrival-actions a:hover, #arrival-dismiss:hover { border-color: #8e73c8; background: #231d33; }
-  #arrival-actions a small { display: block; margin-top: 2px; color: #8f91a0; font-size: 11px; }
-  #arrival-dismiss { width: 100%; margin-top: 10px; text-align: center; background: #4a3d6b; border-color: #5a4b80; color: #fff; }
-  @media (max-width: 520px) { #arrival-card { padding: 22px 18px 18px; } #arrival-actions { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-<div id="loading"><span>Entering the lobby…</span></div>
-<div id="arrival" aria-label="Nexus Lobby V2 welcome">
-  <div id="arrival-card">
-    <div id="arrival-kicker">Nexus Lobby V2 · arrival point</div>
-    <h1>Welcome to the District</h1>
-    <p>Start here. Talk with Nexie, look around, then choose a room. Every route leads back through the lobby.</p>
-    <div id="arrival-actions">
-      <a href="https://shaden.technology/pub/">The Pub<small>music, E-JAK, and the night shift</small></a>
-      <a href="https://shaden.technology/arcade/">The Arcade<small>games and the city after dark</small></a>
-      <a href="https://shaden.technology/temple/">The Temple<small>quiet, strange, and waiting</small></a>
-      <a href="https://shaden.technology/link/">Shaden Records<small>listen and follow the signal</small></a>
-    </div>
-    <button id="arrival-dismiss" type="button">Enter the Lobby</button>
-  </div>
-</div>
+<div id="loading"><span>Entering the sky lobby…</span></div>
 <div id="hint"></div>
 <div id="fade"></div>
 <div id="stats" hidden></div>
@@ -179,12 +141,12 @@ const ARTWORK_URL = '';      // put a jpg/png path here, or just drag an image o
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const hint = document.getElementById('hint');
 hint.textContent = isTouch
-  ? 'One finger to look, two fingers to walk, tap Nexie or the doors'
-  : 'Drag to look, scroll or WASD to walk, click Nexie or the doors';
+  ? 'One finger to look, two fingers to walk, tap the elevator to go down'
+  : 'Drag to look, scroll or WASD to walk, click the elevator to go down';
 setTimeout(() => hint.style.opacity = 0, 6000);
 
 // ================= RENDERER / SCENE =================
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.75 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
@@ -193,10 +155,12 @@ renderer.toneMappingExposure = 1.05;
 renderer.localClippingEnabled = true;   // lets the falling glyphs be cut off by the lips
 document.body.appendChild(renderer.domElement);
 
-const SKY = 0x6a5c86;        // purple haze at the horizon
+const SKY = 0x231847;        // purple haze, so the far ground stays purple
 const SKY_TOP = 0x1d1830;    // deep violet overhead
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(SKY, 200, 2700);
+// haze only in the last stretch before the horizon: the city, the lawn and the
+// tower are all well inside 3 km, so nothing there is touched by it
+scene.fog = new THREE.Fog(SKY, 6500, 18000);
 
 // vertical gradient sky
 {
@@ -204,11 +168,13 @@ scene.fog = new THREE.Fog(SKY, 200, 2700);
   c.width = 4; c.height = 256;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#1b162c');
-  grad.addColorStop(0.42, '#2f2745');
-  grad.addColorStop(0.60, '#544a72');
-  grad.addColorStop(0.76, '#8a76a6');
-  grad.addColorStop(1, '#3b3352');
+  grad.addColorStop(0, '#0d0720');        // near-black purple overhead
+  grad.addColorStop(0.34, '#1d1440');
+  grad.addColorStop(0.455, '#2b2052');
+  grad.addColorStop(0.487, '#4c4763');    // grey only in a sliver at the horizon
+  grad.addColorStop(0.50, '#6e6d78');
+  grad.addColorStop(0.53, '#4a4168');     // below the horizon (mostly hidden by ground)
+  grad.addColorStop(1, '#2f2450');
   g.fillStyle = grad;
   g.fillRect(0, 0, 4, 256);
   const t = new THREE.CanvasTexture(c);
@@ -217,7 +183,7 @@ scene.fog = new THREE.Fog(SKY, 200, 2700);
   scene.background = t;
 }
 
-const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.25, 4000);
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.25, 20000);
 camera.rotation.order = 'YXZ';
 
 // ================= ROOM DIMENSIONS =================
@@ -226,7 +192,7 @@ const hw = W / 2, hd = D / 2;
 const T = 0.3; // wall thickness
 const WIN = { x0: -8, x1: 8, y0: 0.4, y1: H - 0.8 };
 
-const FLOOR = 9;             // height of the lobby floor above the ground outside
+const FLOOR = 430;           // top floor: above the saucer tower
 
 let PARENT = scene;          // helpers add here (scene for the lobby, OUT for the world outside)
 const obstacles = [];
@@ -365,70 +331,40 @@ box(T, H, D + 2 * T, M.wall,  hw + T / 2, H / 2, 0);                  // right w
   pane.position.set(0, H / 2, fz + 0.02);
   scene.add(pane);
   for (let i = 0; i <= BAYS; i++) box(0.12, H, 0.32, M.frame, -hw + i * bw, H / 2, fz);   // mullions
-  box(W, 0.12, 0.32, M.frame, 0, DOOR_H, fz);                                            // door head
   box(W, 0.12, 0.32, M.frame, 0, TRANSOM, fz);                                           // transom
-  box(W, 0.4, 0.34, M.black, 0, 0.2, fz);                                                // spandrel at the floor
 
-  // four door bays, a pair of swinging leaves in each
-  const DB = 2.5, lw = DB / 2 - 0.13;
-  for (const x of [-2 * DB, -DB, 0, DB, 2 * DB]) box(0.1, DOOR_H, 0.26, M.frame, x, DOOR_H / 2, fz - 0.02);  // jambs
-  for (const bay of [-3, -1, 1, 3]) {
-    const cx = bay * DB / 2;
-    for (const side of [-1, 1]) {
-      const lx = cx + side * (DB / 4 + 0.015);
-      box(lw, DOOR_H - 0.2, 0.05, M.leaf, lx, (DOOR_H - 0.2) / 2 + 0.06, fz - 0.06);      // glass leaf
-      box(lw, 0.07, 0.09, M.frame, lx, 0.09, fz - 0.06);                                  // bottom rail
-      box(lw, 0.07, 0.09, M.frame, lx, DOOR_H - 0.09, fz - 0.06);                         // top rail
-      box(0.05, DOOR_H - 0.6, 0.05, M.frame, lx + side * (lw / 2 - 0.02), DOOR_H / 2, fz - 0.06); // outer stile
-      box(0.045, 1.15, 0.045, M.steel, cx + side * 0.17, 1.05, fz - 0.17);                // pull, on the swinging edge
-      box(0.045, 0.045, 0.1, M.steel, cx + side * 0.17, 1.6, fz - 0.12);                  // handle standoffs
-      box(0.045, 0.045, 0.1, M.steel, cx + side * 0.17, 0.5, fz - 0.12);
-    }
-  }
 }
 
-// Window wall (back, behind the desk)
-const wz = -hd - T / 2;
-box(W + 2 * T, WIN.y0, T, M.wall, 0, WIN.y0 / 2, wz);
-box(W + 2 * T, H - WIN.y1, T, M.wall, 0, (WIN.y1 + H) / 2, wz);
-const sideW = hw + T + WIN.x0;
-box(sideW, WIN.y1 - WIN.y0, T, M.wall, -hw - T + sideW / 2, (WIN.y0 + WIN.y1) / 2, wz);
-box(sideW, WIN.y1 - WIN.y0, T, M.wall,  hw + T - sideW / 2, (WIN.y0 + WIN.y1) / 2, wz);
-
-// Window frame, mullions, glass
-const winH = WIN.y1 - WIN.y0, winW = WIN.x1 - WIN.x0, winY = (WIN.y0 + WIN.y1) / 2;
-const PANES = 4;
-box(winW + 0.2, 0.1, 0.4, M.frame, 0, WIN.y0, wz);
-box(winW + 0.2, 0.1, 0.4, M.frame, 0, WIN.y1, wz);
-for (let i = 0; i <= PANES; i++) box(0.08, winH, 0.4, M.frame, WIN.x0 + i * (winW / PANES), winY, wz);
-const glass = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), M.glass);
-glass.position.set(0, winY, wz);
-scene.add(glass);
-
-// ================= ENTRANCE STAIR (down to the plaza) =================
+// Window wall (back): same curtain wall as the entrance side, floor to ceiling
 {
-  const STEPS = Math.round(FLOOR / 0.18), RISE = FLOOR / STEPS, TREAD = 0.34, SW = 14;
+  const wz2 = -hd - 0.1, BAYS = 4, bw = W / BAYS, TRANSOM = 6.6;
+  const pane = new THREE.Mesh(new THREE.PlaneGeometry(W, H), M.curtain);
+  pane.position.set(0, H / 2, wz2 - 0.02);
+  scene.add(pane);
+  for (let i = 0; i <= BAYS; i++) box(0.12, H, 0.32, M.frame, -hw + i * bw, H / 2, wz2);
+  box(W, 0.12, 0.32, M.frame, 0, TRANSOM, wz2);
+}
+
+// ================= FACADE + PARAPET =================
+{
   BATCH = true;
-  box(SW, 0.3, 2.6, M.black, 0, -0.15, hd + 1.6);                       // landing outside the doors
-  box(SW, 0.03, 0.03, M.led, 0, 0.02, hd + 2.85);
-  for (let i = 1; i <= STEPS; i++) {
-    box(SW, RISE, TREAD, M.black, 0, -RISE * (i - 0.5), hd + 2.9 + TREAD * (i - 0.5));
-    if (i % 6 === 0) box(SW, 0.015, 0.015, M.led, 0, -RISE * (i - 1) - 0.01, hd + 2.9 + TREAD * (i - 1) + 0.01);
+  box(W + 2 * T, FLOOR, 0.4, M.black, 0, -FLOOR / 2, hd + 0.5);        // tower face below the doors
+  box(W + 2 * T, FLOOR, 0.4, M.black, 0, -FLOOR / 2, -hd - 0.5);       // and below the window
+  for (let i = 1; i < 26; i++) {                                        // floor lines down the facade
+    box(W + 2.2, 0.12, 0.12, M.frame, 0, -i * (FLOOR / 26), -hd - 0.72);
+    box(W + 2.2, 0.12, 0.12, M.frame, 0, -i * (FLOOR / 26), hd + 0.72);
   }
   BATCH = false;
   flushBatch(scene);
+}
 
-  // sloped glass balustrades either side
-  const run = STEPS * TREAD, ang = Math.atan2(FLOOR, run), len = Math.hypot(run, FLOOR);
-  for (const side of [-1, 1]) {
-    for (const [off, mat, h, d] of [[0.5, M.glass, 1.0, 0.06], [1.02, M.black, 0.07, 0.07], [0.97, M.led, 0.015, 0.015]]) {
-      const m = box(d === 0.06 ? 0.06 : d, h, len, mat, side * (SW / 2 - 0.1), -FLOOR / 2 + off, hd + 2.9 + run / 2);
-      m.rotation.x = ang;
-    }
-  }
-  // facade below the doors
+// a low steel reveal where the glass meets the floor, so it reads as a window
+{
   BATCH = true;
-  box(W + 2 * T, FLOOR, 0.4, M.black, 0, -FLOOR / 2, hd + 0.5);
+  box(W, 0.14, 0.24, M.steel, 0, 0.07, -hd + 0.12);                   // city side
+  box(W, 0.14, 0.24, M.steel, 0, 0.07, hd - 0.12);                    // entrance side
+  BATCH = false;
+  flushBatch(scene);
 }
 
 // ================= LED LINES =================
@@ -453,13 +389,6 @@ box(0.02, 0.02, D - 0.2, M.led,  hw - 0.03, 0.04, 0);
 
 BATCH = false;
 flushBatch(scene);
-
-// Columns (kept separate: they act as obstacles)
-[[-7.6, -8.2], [7.6, -8.2], [-7.6, 7.6], [7.6, 7.6]].forEach(([x, z]) => {
-  solid(cyl(0.4, 0.4, H, M.black, x, H / 2, z));
-  cyl(0.405, 0.405, 0.03, M.led, x, 0.3, z);
-  cyl(0.405, 0.405, 0.03, M.led, x, H - 0.3, z);
-});
 
 // ================= FURNITURE =================
 function sofa(x, z, rotY, len = 2.6) {
@@ -509,7 +438,8 @@ function seatingGroup(x, z) {
   box(6, 1.03, 1.0, M.black, 0, 0.515, 0, g);
   box(6.2, 0.05, 1.3, M.lightGrey, 0, 1.055, 0.1, g);
   box(6, 0.02, 0.02, M.led, 0, 0.08, 0.51, g);
-  g.position.set(0, 0, -6.5);
+  g.position.set(5.9, 0, 0);            // under the rain portrait, facing into the room
+  g.rotation.y = -Math.PI / 2;
   scene.add(g); solid(g);
 }
 
@@ -558,12 +488,42 @@ const rain = (() => {
 
 const artMat = new THREE.MeshStandardMaterial({
   color: 0xffffff, map: rain.tex, emissiveMap: rain.tex, emissive: 0xffffff,
-  emissiveIntensity: 0.75, roughness: 0.6, metalness: 0, envMapIntensity: 0
+  emissiveIntensity: 0.75, roughness: 0.6, metalness: 0, envMapIntensity: 0,
+  transparent: true, opacity: 0.93
 });
 const artPlane = new THREE.Mesh(new THREE.PlaneGeometry(ART.w, ART.h), artMat);
 artPlane.rotation.y = -Math.PI / 2;
 artPlane.position.set(hw - 0.012, ART.y, ART.z);
 scene.add(artPlane);
+
+// map.png goes on the panel. It's drawn onto a canvas the exact shape of the
+// frame and scaled to fit inside it, so any size or aspect works and the frame
+// itself never changes. The rain stays as the fallback if the file is missing.
+const MAP_IMAGE = 'map.png';
+const MAP_GLOW = 0.5;                  // how lit the panel looks in the dark room
+(function loadPanelImage() {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = 1536;
+    c.height = Math.round(1536 * (ART.h / ART.w));     // same shape as the frame
+    const g = c.getContext('2d');
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, c.width, c.height);
+    const k = Math.min(c.width / img.width, c.height / img.height);   // fit, never crop
+    const w = img.width * k, h = img.height * k;
+    g.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    artMat.map = t;
+    artMat.emissiveMap = t;
+    artMat.emissiveIntensity = MAP_GLOW;
+    artMat.needsUpdate = true;
+  };
+  img.onerror = () => {};              // keep the rain
+  img.src = MAP_IMAGE;
+})();
 
 BATCH = true;
 // spill lip at the top, tiny, and the catch basin lip at the bottom
@@ -699,7 +659,6 @@ let signPlane;
     g.lineWidth = 2; g.strokeStyle = 'rgba(20,24,30,0.9)'; g.strokeText(text, 1024, y, w);
   };
   line('N E X U S', 250, 270, 1700);
-  line('B U I L D I N G', 78, 470, 900);
 
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.sRGBEncoding;
@@ -716,7 +675,7 @@ if (THREE.FontLoader && THREE.TextGeometry) {
   const loader = new THREE.FontLoader();
   const CDN = 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/fonts/';
   loader.load(CDN + 'helvetiker_regular.typeface.json', regular => {
-    loader.load(CDN + 'helvetiker_bold.typeface.json', bold => {
+    {
       const chromeMat = new THREE.MeshPhysicalMaterial({
         color: 0xd2d8df, metalness: 1, roughness: 0.15,
         clearcoat: 0.6, clearcoatRoughness: 0.1, envMapIntensity: 1.7
@@ -740,11 +699,9 @@ if (THREE.FontLoader && THREE.TextGeometry) {
         return { mesh, halfH: (bb.max.y - bb.min.y) * k / 2 };
       };
       const nx = makeLine('N E X U S', regular, 9.0, 0.11);       // lighter weight, sits flatter
-      const bd = makeLine('B U I L D I N G', bold, 5.4, 0.12);    // thicker slab
       nx.mesh.position.y = SIGN.topY;
-      bd.mesh.position.y = SIGN.topY - nx.halfH - 0.55 - bd.halfH;
       signPlane.visible = false;
-    }, undefined, () => {});
+    }
   }, undefined, () => {});
 }
 
@@ -779,44 +736,47 @@ PARENT = OUT;
 BATCH = true;            // everything outside gets merged
 
 // base ground
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), flat(0x5a5666));
+// unlit, so it renders exactly this colour instead of being brightened by the
+// sun and sky lights; that lets it sit at the same value as the sky
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000),
+  new THREE.MeshBasicMaterial({ color: 0x150d30 }));
 ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.12;
+ground.position.y = -0.7;
 OUT.add(ground);
 
 // plaza right outside the window
-box(90, 0.04, 30, flat(0x6f6b78), 0, 0.02, -26);
+box(90, 0.1, 30, flat(0x2b2748), 0, 0.14, -26);
 
 // raised entrance terrace in front of the building
-box(30, 1.34, 10, flat(0x5e5a66), 0, 0.53, -15.5);
+box(30, 1.34, 10, flat(0x282444), 0, 0.53, -15.5);
 box(30, 0.03, 0.03, M.led, 0, 1.22, -10.55);
 
 // outdoor steps down to the sidewalk
 for (let i = 0; i < 6; i++)
-  box(14, 0.2, 0.45, flat(0x6b6772), 0, 1.1 - i * 0.2, -20.7 - i * 0.45);
-box(0.12, 1.1, 2.9, flat(0x3c3944), -7.06, 0.55, -21.9);
-box(0.12, 1.1, 2.9, flat(0x3c3944),  7.06, 0.55, -21.9);
+  box(14, 0.2, 0.45, flat(0x2e2a4c), 0, 1.1 - i * 0.2, -20.7 - i * 0.45);
+box(0.12, 1.1, 2.9, flat(0x231f3c), -7.06, 0.55, -21.9);
+box(0.12, 1.1, 2.9, flat(0x231f3c),  7.06, 0.55, -21.9);
 
 // sidewalk running from the foot of the steps out into the park
-box(8, 0.04, 20, flat(0x8e8a80), 0, 0.06, -33.5);
+box(8, 0.1, 20, flat(0x3a3558), 0, 0.3, -33.5);
 
 // big central park lawn
-const lawn = new THREE.Mesh(new THREE.PlaneGeometry(180, 300), flat(0x3f5a3e));
+const lawn = new THREE.Mesh(new THREE.PlaneGeometry(180, 700), flat(0x25361f));
 lawn.rotation.x = -Math.PI / 2;
-lawn.position.set(0, 0.0, -190);
+lawn.position.set(0, 0.12, -390);
 OUT.add(lawn);
 
 // paths across the lawn
-box(6, 0.04, 306, flat(0x8e8a80), 0, 0.06, -193);
-box(180, 0.04, 5, flat(0x8e8a80), 0, 0.06, -150);
+box(6, 0.1, 706, flat(0x3a3558), 0, 0.3, -393);
+box(180, 0.1, 5, flat(0x3a3558), 0, 0.3, -260);
 
 // ring road at the far edge of the park
-box(1400, 0.04, 90, flat(0x2f2f36), 0, 0.04, -390);
-box(1400, 0.04, 0.6, flat(0x4a4a52), 0, 0.08, -347);
-box(1400, 0.04, 0.6, flat(0x4a4a52), 0, 0.08, -433);
-for (let x = -690; x < 690; x += 26) box(14, 0.04, 0.5, flat(0x9c9484), x, 0.08, -390);
-box(14, 0.02, 320, flat(0x4a4852), -104, -0.01, -190);
-box(14, 0.02, 320, flat(0x4a4852),  104, -0.01, -190);
+box(5200, 0.1, 90, flat(0x1c1832), 0, 0.2, -790);
+box(5200, 0.1, 0.8, flat(0x332e50), 0, 0.34, -747);
+box(5200, 0.1, 0.8, flat(0x332e50), 0, 0.34, -833);
+for (let x = -2590; x < 2590; x += 26) box(14, 0.1, 0.7, flat(0x4d4770), x, 0.34, -790);
+box(14, 0.02, 320, flat(0x2a2646), -104, -0.01, -190);
+box(14, 0.02, 320, flat(0x2a2646),  104, -0.01, -190);
 
 let seed = 7;
 const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -825,9 +785,11 @@ const cityMats = [0x101015, 0x15151c, 0x0b0b10, 0x1b1b24, 0x121219].map(c =>
 
 // dark city, far behind the park
 [
-  { z: -420,  spread: 1400, count: 34, hMin: 60,  hMax: 170 },
-  { z: -650,  spread: 1900, count: 38, hMin: 110, hMax: 280 },
-  { z: -950,  spread: 2600, count: 40, hMin: 140, hMax: 260 },
+  { z: -880,  spread: 3400, count: 54, hMin: 60,  hMax: 190 },
+  { z: -1150, spread: 4400, count: 58, hMin: 110, hMax: 300 },
+  { z: -1500, spread: 5400, count: 60, hMin: 140, hMax: 330 },
+  { z: -2050, spread: 6600, count: 56, hMin: 120, hMax: 300 },
+  { z: -2700, spread: 7800, count: 52, hMin: 90,  hMax: 240 },
 ].forEach(row => {
   for (let i = 0; i < row.count; i++) {
     const w = 28 + rand() * 46, d = 28 + rand() * 46;
@@ -835,7 +797,7 @@ const cityMats = [0x101015, 0x15151c, 0x0b0b10, 0x1b1b24, 0x121219].map(c =>
     const x = -row.spread / 2 + (i + rand() * 0.7) * (row.spread / row.count);
     const z = row.z - rand() * 120;
     if (Math.abs(x) - w / 2 < (row.z > -600 ? 78 : 56)) continue;   // keep footprints off the avenue
-    if (z + d / 2 > -448 && z - d / 2 < -332) continue;             // and off the cross street
+    if (z + d / 2 > -848 && z - d / 2 < -732) continue;             // and off the cross street
     box(w, h, d, cityMats[Math.floor(rand() * cityMats.length)], x, h / 2, z);
     if (rand() > 0.55) box(w * 0.45, h * 0.18, d * 0.45, cityMats[0], x, h + h * 0.09, z);
     if (rand() > 0.8) box(2, h * 0.25, 2, cityMats[1], x, h + h * 0.12, z); // spire
@@ -843,10 +805,10 @@ const cityMats = [0x101015, 0x15151c, 0x0b0b10, 0x1b1b24, 0x121219].map(c =>
 });
 
 // tree lines along the main path, set well back from it
-for (let z = -60; z >= -330; z -= 18) {
+for (let z = -60; z >= -730; z -= 18) {
   for (const x of [-82, 82]) {
     cyl(0.22, 0.3, 4.5, flat(0x241f1c), x, 2.25, z, OUT, 8);
-    const top = new THREE.Mesh(new THREE.IcosahedronGeometry(3.1, 1), flat(0x2f4a30));
+    const top = new THREE.Mesh(new THREE.IcosahedronGeometry(3.1, 1), flat(0x203219));
     top.position.set(x, 6.4, z);
     top.scale.set(1, 1.15, 1);
     OUT.add(top);
@@ -854,8 +816,8 @@ for (let z = -60; z >= -330; z -= 18) {
 }
 
 // plaza at the foot of the entrance stair
-box(120, 0.04, 70, flat(0x3a3a41), 0, 0.02, 46);
-box(10, 0.04, 60, flat(0x55555c), 0, 0.06, 60);
+box(120, 0.1, 70, flat(0x232040), 0, 0.14, 46);
+box(10, 0.1, 60, flat(0x332e50), 0, 0.3, 60);
 
 // a few blocks behind the building so that side isn't empty
 for (let i = 0; i < 12; i++) {
@@ -865,23 +827,37 @@ for (let i = 0; i < 12; i++) {
   const z = 170 + (i % 2) * 150 + rand() * 50;             // two staggered depth bands
   box(w, h, d, greyBack[i % 3], x, h / 2, z);
 }
+// and a thin scatter running far off behind the building
+for (let i = 0; i < 34; i++) {
+  const w = 34 + rand() * 46, d = 34 + rand() * 46;
+  const h = 50 + rand() * 150;
+  box(w, h, d, greyBack[i % 3], -1800 + rand() * 3600, h / 2, 450 + rand() * 2200);
+}
 
 // street running from the end of the sidewalk straight out to the saucer tower
-box(90, 0.04, 1470, flat(0x2f2f36), 0, 0.04, -1080);
-box(0.6, 0.04, 1470, flat(0x4a4a52), -43, 0.08, -1080);
-box(0.6, 0.04, 1470, flat(0x4a4a52),  43, 0.08, -1080);
-for (let z = -360; z > -1800; z -= 26) box(0.5, 0.04, 14, flat(0x9c9484), 0, 0.08, z);
+box(90, 0.1, 2200, flat(0x1c1832), 0, 0.2, -1895);
+box(0.8, 0.1, 2200, flat(0x332e50), -43, 0.34, -1895);
+box(0.8, 0.1, 2200, flat(0x332e50),  43, 0.34, -1895);
+for (let z = -810; z > -2980; z -= 26) box(0.7, 0.1, 14, flat(0x4d4770), 0, 0.34, z);
 
 // low blocks lining both sides of the lawn, spaced so they never overlap
 const LOT = 44;                                  // one building per lot, depth kept under the lot size
-for (let z = -20; z >= -330; z -= LOT) {
+for (let z = -20; z >= -730; z -= LOT) {
   for (const side of [-1, 1]) {
     const d = 16 + rand() * 12;                  // 16-28 deep, well inside the 44 m lot
     const w = 16 + rand() * 14, h = 11 + rand() * 24;
     box(w, h, d, greyBack[Math.floor(rand() * 3)], side * (108 + rand() * 16), h / 2, z - rand() * 6);
-    if (rand() > 0.4) {                          // second rank, its own lot behind
+    if (rand() > 0.35) {                         // second rank, its own lot behind
       const d2 = 20 + rand() * 14, w2 = 20 + rand() * 18, h2 = 24 + rand() * 34;
       box(w2, h2, d2, greyBack[Math.floor(rand() * 3)], side * (162 + rand() * 26), h2 / 2, z - 14 - rand() * 8);
+    }
+    if (rand() > 0.45) {                         // third rank, taller, further out
+      const d3 = 26 + rand() * 18, w3 = 26 + rand() * 22, h3 = 38 + rand() * 52;
+      box(w3, h3, d3, greyBack[Math.floor(rand() * 3)], side * (300 + rand() * 90), h3 / 2, z - 6 - rand() * 20);
+    }
+    if (rand() > 0.55) {                         // sparse outskirts, left and right
+      const d4 = 30 + rand() * 26, w4 = 30 + rand() * 30, h4 = 30 + rand() * 70;
+      box(w4, h4, d4, greyBack[Math.floor(rand() * 3)], side * (480 + rand() * 420), h4 / 2, z - rand() * 40);
     }
   }
 }
@@ -889,11 +865,11 @@ for (let z = -20; z >= -330; z -= LOT) {
 // grey mid-rise blocks, set well back from both sides of the lawn
 const greyMats = [0x3b3648, 0x443f52, 0x332f3f, 0x4c4659, 0x3f3a4c].map(c =>
   new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.25, envMapIntensity: 0 }));
-for (let z = -70; z >= -340; z -= 66) {
+for (let z = -70; z >= -740; z -= 54) {
   for (const side of [-1, 1]) {
     const w = 30 + rand() * 18, d = 24 + rand() * 14, h = 22 + rand() * 46;
     const x = side * (215 + rand() * 45);
-    const zz = Math.min(z + rand() * 16, -335 + d / 2 - 6);
+    const zz = Math.min(z + rand() * 16, -735 + d / 2 - 6);
     box(w, h, d, greyMats[Math.floor(rand() * greyMats.length)], x, h / 2, zz);
     if (rand() > 0.5) box(w * 0.5, h * 0.12, d * 0.5, greyMats[1], x, h + h * 0.06, zz);
   }
@@ -901,8 +877,8 @@ for (let z = -70; z >= -340; z -= 66) {
 
 // towers lining the avenue, evenly spaced the whole way out to the saucer tower
 for (const side of [-1, 1]) {
-  for (let i = 0; i < 12; i++) {
-    const z = -455 - i * 82 - rand() * 24;
+  for (let i = 0; i < 18; i++) {
+    const z = -900 - i * 105 - rand() * 24;
     const w = 26 + rand() * 26, d = 26 + rand() * 26;
     let h = 120 + rand() * 190;
     if (side > 0 && i % 3 === 0) h = 250 + rand() * 150;      // tall ones mixed in on the right
@@ -918,20 +894,31 @@ for (const side of [-1, 1]) {
   }
 }
 
+// distant outskirts, very sparse, fading into the haze
+for (let i = 0; i < 90; i++) {
+  const ang = rand() * Math.PI * 2;
+  const dist = 2800 + rand() * 4200;
+  const x = Math.sin(ang) * dist;
+  const z = Math.cos(ang) * dist - 800;
+  const w = 60 + rand() * 120, d = 60 + rand() * 120, h = 60 + rand() * 260;
+  if (Math.hypot(x, z + 3000) < 700) continue;      // leave the tower room to stand alone
+  box(w, h, d, cityMats[Math.floor(rand() * cityMats.length)], x, h / 2, z, OUT);
+}
+
 // landmark tower, straight down the sidewalk: skinny neck, saucer top
 {
-  const m = new THREE.MeshStandardMaterial({ color: 0x212429, roughness: 0.45, metalness: 0.35, envMapIntensity: 0 });
-  const m2 = new THREE.MeshStandardMaterial({ color: 0x191b1f, roughness: 0.5, metalness: 0.35, envMapIntensity: 0 });
-  const TX = 0, TZ = -1800;
-  cyl(7, 21, 240, m, TX, 120, TZ, OUT, 20);       // tapered shaft
-  cyl(4, 6.5, 64, m2, TX, 272, TZ, OUT, 16);      // skinny neck
-  cyl(20, 26, 4, m, TX, 302, TZ, OUT, 28);        // saucer underside
-  cyl(25, 20, 5.5, m, TX, 306.5, TZ, OUT, 28);    // saucer body
-  cyl(11, 18, 5, m2, TX, 311.5, TZ, OUT, 24);     // saucer crown
-  cyl(0.8, 2.8, 48, m2, TX, 338, TZ, OUT, 10);    // spire
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(26.5, 26.5, 0.6, 30),
+  const m = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.45, metalness: 0.35, envMapIntensity: 0 });
+  const m2 = new THREE.MeshStandardMaterial({ color: 0x0e1013, roughness: 0.5, metalness: 0.35, envMapIntensity: 0 });
+  const TX = 0, TZ = -3000;
+  cyl(7, 21, 300, m, TX, 150, TZ, OUT, 20);       // tapered shaft
+  cyl(4, 6.5, 82, m2, TX, 341, TZ, OUT, 16);      // skinny neck
+  cyl(28, 36, 5, m, TX, 375.5, TZ, OUT, 28);      // saucer underside
+  cyl(35, 28, 7, m, TX, 381.5, TZ, OUT, 28);      // saucer body
+  cyl(15, 25, 6, m2, TX, 388, TZ, OUT, 24);       // saucer crown
+  cyl(0.8, 2.8, 60, m2, TX, 418, TZ, OUT, 10);    // spire
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(36.4, 36.4, 0.8, 30),
     new THREE.MeshBasicMaterial({ color: 0xb79cf2, toneMapped: false }));
-  ring.position.set(TX, 304.3, TZ);
+  ring.position.set(TX, 377.8, TZ);
   OUT.add(ring);
 }
 
@@ -940,6 +927,87 @@ for (const side of [-1, 1]) {
 BATCH = false;
 flushBatch(OUT);         // city collapses into a few draw calls
 PARENT = scene;
+
+// thin cloud sheets, kept well out past the city so they read as distant haze
+// near the horizon rather than a veil over the lawn and the near buildings
+{
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(128, 128, 10, 128, 128, 126);
+  grd.addColorStop(0, 'rgba(190,182,215,0.34)');
+  grd.addColorStop(1, 'rgba(190,182,215,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+  const cloudTex = new THREE.CanvasTexture(c);
+  const cloudMat = new THREE.MeshBasicMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.4 });
+  for (let i = 0; i < 16; i++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(900 + rand() * 900, 900 + rand() * 900), cloudMat);
+    p.rotation.x = -Math.PI / 2;
+    const ang = rand() * Math.PI * 2, dist = 4500 + rand() * 4500;
+    p.position.set(Math.sin(ang) * dist, 60 + rand() * 140, Math.cos(ang) * dist - 800);
+    OUT.add(p);
+  }
+}
+
+// ================= MATRIX RAIN OVER THE CITY =================
+// A handful of glyph columns falling in the air all around the tower, high above
+// the rooftops and only falling a short way. One InstancedMesh, one draw call.
+const cityRain = (() => {
+  const COUNT = isTouch ? 224 : 512;
+  const TOP = 220, BOTTOM = -260;             // falls down among the towers
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789@#$%&*+=<>?!'.split('');
+
+  // one column of glyphs: bright head at the bottom, fading purple above it
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 512;
+  const g = c.getContext('2d');
+  g.font = 'bold 46px monospace';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let i = 0; i < 10; i++) {
+    const y = 512 - 26 - i * 52;
+    const a = i === 0 ? 1 : Math.max(0, 0.62 - i * 0.07);
+    g.fillStyle = i === 0 ? `rgba(232,238,246,${a})` : `rgba(176,138,240,${a})`;
+    g.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], 32, y);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: 0.6, depthWrite: false, fog: true, toneMapped: false
+  });
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, COUNT);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+
+  const dummy = new THREE.Object3D();
+  const cols = [];
+  const place = (d, fresh) => {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 260 + Math.random() * 1500;          // scattered all around
+    d.x = Math.sin(ang) * dist;
+    d.z = Math.cos(ang) * dist - 600;
+    d.h = 26 + Math.random() * 30;                    // column height in metres
+    d.speed = 9 + Math.random() * 12;                 // slow, seen from far away
+    if (fresh) d.y = BOTTOM + Math.random() * (TOP - BOTTOM);
+  };
+  for (let i = 0; i < COUNT; i++) { const d = {}; place(d, true); cols.push(d); }
+
+  function update(dt) {
+    for (let i = 0; i < COUNT; i++) {
+      const d = cols[i];
+      d.y -= d.speed * dt;
+      if (d.y < BOTTOM) { place(d, false); d.y = TOP; }
+      dummy.position.set(d.x, d.y, d.z);
+      dummy.rotation.y = Math.atan2(camera.position.x - d.x, camera.position.z - d.z);
+      dummy.scale.set(d.h * 0.125, d.h, 1);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+  return { update };
+})();
 
 // ================= LIGHTS (no shadows) =================
 scene.add(new THREE.HemisphereLight(0xa192bd, 0x2a2436, 0.45));
@@ -956,11 +1024,13 @@ const CFG = {
   name: 'Nexie',
   image: 'nexie.png',
   image2: 'nexie2.png',           // shown when you walk round to her right (your left)
-  position: [1.2, 0, -7.12],      // right up against the desk
+  position: [6.52, 0, 1.2],       // same spot behind the desk, now on the rain wall
   height: 1.88,
   greeting: "Welcome to the Nexus District. First time here?",
   endpoint: '',                    // your Cloudflare Worker URL
   doorUrl: 'https://shaden.technology/nexus/',
+  skyUrl: 'sky-lobby.html',        // where the middle elevator goes
+  plazaUrl: 'https://shaden.technology/nexus/',   // where the elevators go down to
   rooms: []                        // [{ id, label, emoji, url }] from nexie.json
 };
 let modalOpen = false;     // the door card blocks input; the chat does not
@@ -1055,16 +1125,18 @@ function placeNexie() {
 }
 placeNexie();
 
-// invisible hit box across the entrance doors
-const doorHit = new THREE.Mesh(new THREE.BoxGeometry(10, 3.2, 0.4),
-  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-doorHit.position.set(0, 1.6, hd - 0.15);
-scene.add(doorHit);
+// invisible hit boxes: the entrance doors, and the middle elevator
+const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+const liftHit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 10.4), hitMat);
+liftHit.position.set(-hw + 0.25, 1.7, -0.75);        // all three cars
+scene.add(liftHit);
 
 // config file: lets you move her, rename her, and set the worker URL without touching this file
 fetch('nexie.json').then(r => r.ok ? r.json() : null).then(cfg => {
   if (!cfg) return;
+  const here = CFG.position;            // this page places her itself
   Object.assign(CFG, cfg);
+  CFG.position = here;
   document.getElementById('chat-name').textContent = CFG.name || 'Nexie';
   [CFG.image, CFG.image2].forEach((src, i) => {
     if (!src) return;
@@ -1084,15 +1156,23 @@ const ndc = new THREE.Vector2();
 function pickAt(cx, cy) {
   ndc.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const hit = raycaster.intersectObjects([nexie, doorHit], false)[0];
+  const hit = raycaster.intersectObjects([nexie, liftHit], false)[0];
   return hit ? hit.object : null;
 }
 const doorEl = document.getElementById('door');
-function askToLeave() { modalOpen = true; doorEl.hidden = false; }
+let pendingUrl = '';
+function askToLeave(title, action, url) {
+  if (!url) return;
+  document.getElementById('door-title').textContent = title;
+  document.getElementById('door-exit').textContent = action;
+  pendingUrl = url;
+  modalOpen = true;
+  doorEl.hidden = false;
+}
 function closeDoor() { modalOpen = false; doorEl.hidden = true; }
 document.getElementById('door-close').addEventListener('click', closeDoor);
 doorEl.addEventListener('click', e => { if (e.target === doorEl) closeDoor(); });   // click outside the card
-document.getElementById('door-exit').addEventListener('click', () => goTo(CFG.doorUrl));
+document.getElementById('door-exit').addEventListener('click', () => goTo(pendingUrl));
 
 // ---- chat overlay (history lives in memory only) ----
 const chatEl = document.getElementById('chat');
@@ -1104,9 +1184,6 @@ function goTo(url) {
   document.getElementById('fade').classList.add('on');
   setTimeout(() => { location.href = url; }, 520);
 }
-document.getElementById('arrival-dismiss').addEventListener('click', () => {
-  document.getElementById('arrival').classList.add('off');
-});
 // Nexie writes [[go:room-id]]; only ids listed in nexie.json become buttons
 function fillMsg(d, text) {
   d.textContent = '';
@@ -1258,7 +1335,7 @@ function endPointer(e) {
     if (moved < 9 && performance.now() - tap.t < 350) {
       const obj = pickAt(e.clientX, e.clientY);
       if (obj === nexie) openChat();
-      else if (obj === doorHit) askToLeave();
+      else if (obj === liftHit) askToLeave('Take the elevator down?', 'Down to Ground Floor', CFG.plazaUrl);
     }
   }
   tap = null;
@@ -1350,6 +1427,7 @@ function frame(now = performance.now()) {
   }
   // rain.update(performance.now());   // uncomment to let the background rain flow again
   glyphRain.update(dt);
+  cityRain.update(dt);
   holoMat.uniforms.time.value += dt;
   glitchClock += dt;
   if (glitchClock >= GLITCH_EVERY) { glitchClock = 0; glitchBurst(); }
