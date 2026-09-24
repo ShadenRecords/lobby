@@ -97,10 +97,48 @@
     padding: 8px 14px; border-radius: 8px; pointer-events: none;
     max-width: calc(100% - 32px); text-align: center; transition: opacity .6s;
   }
+  #arrival {
+    position: fixed; inset: 0; z-index: 44; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: linear-gradient(180deg, rgba(5,5,8,.48), rgba(5,5,8,.78));
+    pointer-events: none; transition: opacity .35s ease;
+  }
+  #arrival.off { opacity: 0; pointer-events: none; }
+  #arrival-card {
+    width: min(520px, 100%); padding: 26px 28px 24px; background: rgba(10,10,15,.9);
+    border: 1px solid #5f4c8c; border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.7), 0 0 34px rgba(129,94,196,.2);
+    color: #e8e9ef; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    pointer-events: auto; backdrop-filter: blur(12px);
+  }
+  #arrival-kicker { color: #b79cf2; font: 11px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .22em; text-transform: uppercase; }
+  #arrival h1 { margin: 10px 0 8px; font-size: clamp(25px, 5vw, 38px); letter-spacing: .1em; text-transform: uppercase; font-weight: 500; }
+  #arrival p { margin: 0; color: #b9bdc8; max-width: 46ch; }
+  #arrival-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin-top: 20px; }
+  #arrival-actions a, #arrival-dismiss {
+    border: 1px solid #403750; background: #17151e; color: #e9e2fb; border-radius: 8px;
+    padding: 10px 12px; text-align: left; text-decoration: none; font: inherit; cursor: pointer;
+  }
+  #arrival-actions a:hover, #arrival-dismiss:hover { border-color: #8e73c8; background: #231d33; }
+  #arrival-actions a small { display: block; margin-top: 2px; color: #8f91a0; font-size: 11px; }
+  #arrival-dismiss { width: 100%; margin-top: 10px; text-align: center; background: #4a3d6b; border-color: #5a4b80; color: #fff; }
+  @media (max-width: 520px) { #arrival-card { padding: 22px 18px 18px; } #arrival-actions { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <div id="loading"><span>Entering the lobby…</span></div>
+<div id="arrival" aria-label="Nexus Lobby V2 welcome">
+  <div id="arrival-card">
+    <div id="arrival-kicker">Nexus Lobby V2 · arrival point</div>
+    <h1>Welcome to the District</h1>
+    <p>Start here. Talk with Nexie, look around, then choose a room. Every route leads back through the lobby.</p>
+    <div id="arrival-actions">
+      <a href="https://shaden.technology/pub/">The Pub<small>music, E-JAK, and the night shift</small></a>
+      <a href="https://shaden.technology/arcade/">The Arcade<small>games and the city after dark</small></a>
+      <a href="https://shaden.technology/temple/">The Temple<small>quiet, strange, and waiting</small></a>
+      <a href="https://shaden.technology/link/">Shaden Records<small>listen and follow the signal</small></a>
+    </div>
+    <button id="arrival-dismiss" type="button">Enter the Lobby</button>
+  </div>
+</div>
 <div id="hint"></div>
 <div id="fade"></div>
 <div id="stats" hidden></div>
@@ -1066,6 +1104,9 @@ function goTo(url) {
   document.getElementById('fade').classList.add('on');
   setTimeout(() => { location.href = url; }, 520);
 }
+document.getElementById('arrival-dismiss').addEventListener('click', () => {
+  document.getElementById('arrival').classList.add('off');
+});
 // Nexie writes [[go:room-id]]; only ids listed in nexie.json become buttons
 function fillMsg(d, text) {
   d.textContent = '';
